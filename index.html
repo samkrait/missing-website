@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Person1 vs Person2</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <section class="panel left-panel" id="panel-person1">
+      <h1>Prachu</h1>
+      <div class="counter-card">
+        <button id="person1-button" class="vote-button">I missed Kudler</button>
+        <span class="count" id="person1-count">0</span>
+        <p class="cooldown" id="person1-cooldown"></p>
+      </div>
+      <div class="comments-card">
+        <h2>Comments</h2>
+        <form id="person1-form" class="comment-form">
+          <textarea id="person1-input" placeholder="Leave a comment for Kudler" rows="3"></textarea>
+          <button type="submit">Post Comment</button>
+        </form>
+        <div class="comment-list" id="person1-comments"></div>
+      </div>
+    </section>
+
+    <section class="panel right-panel" id="panel-person2">
+      <h1>Kudler</h1>
+      <div class="counter-card">
+        <button id="person2-button" class="vote-button">I missed Prachu</button>
+        <span class="count" id="person2-count">0</span>
+        <p class="cooldown" id="person2-cooldown"></p>
+      </div>
+      <div class="comments-card">
+        <h2>Comments</h2>
+        <form id="person2-form" class="comment-form">
+          <textarea id="person2-input" placeholder="Leave a comment for Prachu" rows="3"></textarea>
+          <button type="submit">Post Comment</button>
+        </form>
+        <div class="comment-list" id="person2-comments"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="supabase-config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
