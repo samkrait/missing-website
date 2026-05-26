@@ -63,4 +63,4 @@ This is a two-panel website with:
 - This site now uses a shared backend with Supabase for real-time data consistency across users.
 - The Supabase **Publishable key** (new format: `sb_publishable_xxx`) is safe for browser use when Row Level Security (RLS) is enabled on your tables.
 - Legacy `anon` keys still work until end of 2026, but Supabase recommends using the new Publishable keys.
-- Make sure RLS is enabled on both `shared_state` and `comments` tables with appropriate policies before deploying.
+- Make sure RLS is enabled on both `shared_state` and `comments` tables with appropriate policies before deploying..
