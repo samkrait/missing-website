@@ -55,7 +55,7 @@ function createCommentElement(comment) {
 
   const meta = document.createElement('div');
   meta.className = 'comment-meta';
-  const timestamp = comment.timestamp ? new Date(comment.timestamp) : new Date();
+  const timestamp = comment.inserted_at ? new Date(comment.inserted_at) : new Date();
   meta.textContent = `Posted on ${formatTimestamp(timestamp)}`;
 
   commentEl.appendChild(body);
