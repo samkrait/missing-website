@@ -19,6 +19,7 @@ const elements = {
     form: document.getElementById('person1-form'),
     input: document.getElementById('person1-input'),
     comments: document.getElementById('person1-comments'),
+    showButton: document.getElementById('person1-show-comments'),
   },
   person2: {
     button: document.getElementById('person2-button'),
@@ -28,8 +29,11 @@ const elements = {
     form: document.getElementById('person2-form'),
     input: document.getElementById('person2-input'),
     comments: document.getElementById('person2-comments'),
+    showButton: document.getElementById('person2-show-comments'),
   },
 };
+
+const commentsLoaded = { person1: false, person2: false };
 
 const supabaseHeaders = {
   apikey: SUPABASE_PUBLISHABLE_KEY,
@@ -223,12 +227,9 @@ async function refreshData() {
 
   await ensureStateRow();
   await fetchSharedState();
-  state.person1.comments = await fetchComments('person1');
-  state.person2.comments = await fetchComments('person2');
   updateCount('person1');
   updateCount('person2');
-  renderComments('person1');
-  renderComments('person2');
+  // Comments are loaded on demand by clicking the Show Comments button.
   updateCooldown('person1');
   updateCooldown('person2');
 }
@@ -275,7 +276,55 @@ async function postComment(person, text) {
     body: JSON.stringify([{ person, text, inserted_at: new Date().toISOString() }]),
   });
 
-  await refreshData();
+  // After posting, if comments are already loaded for this person, refresh the list.
+  if (commentsLoaded[person]) {
+    state[person].comments = await fetchComments(person);
+    renderComments(person);
+  } else {
+    // If comments weren't loaded yet, load them now and show the panel.
+    await loadComments(person);
+  }
+}
+
+async function loadComments(person) {
+  try {
+    const comments = await fetchComments(person);
+    state[person].comments = comments;
+    commentsLoaded[person] = true;
+    renderComments(person);
+    elements[person].comments.classList.remove('hidden');
+    // update show button label
+    if (elements[person].showButton) elements[person].showButton.textContent = 'Hide comments';
+  } catch (err) {
+    console.error('Failed to load comments for', person, err);
+  }
+}
+
+function toggleCommentsVisibility(person) {
+  const el = elements[person].comments;
+  if (!el) return;
+  const isHidden = el.classList.contains('hidden');
+  if (isHidden) {
+    // If not yet loaded, load first
+    if (!commentsLoaded[person]) {
+      loadComments(person);
+    } else {
+      el.classList.remove('hidden');
+      if (elements[person].showButton) elements[person].showButton.textContent = 'Hide comments';
+    }
+  } else {
+    el.classList.add('hidden');
+    if (elements[person].showButton) elements[person].showButton.textContent = 'Show comments';
+  }
+}
+
+function setupShowComments(person) {
+  const btn = elements[person].showButton;
+  if (!btn) return;
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleCommentsVisibility(person);
+  });
 }
 
 function setupCounter(person) {
@@ -314,7 +363,11 @@ async function initialize() {
   ['person1', 'person2'].forEach((person) => {
     setupCounter(person);
     setupComments(person);
+    setupShowComments(person);
     startCooldownTimer(person);
+    // hide comment lists by default to speed up initial load
+    if (elements[person].comments) elements[person].comments.classList.add('hidden');
+    if (elements[person].showButton) elements[person].showButton.textContent = 'Show comments';
   });
 
   try {
