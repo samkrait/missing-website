@@ -96,6 +96,14 @@ body {
   min-height: 1.2rem;
 }
 
+.last-click {
+  margin-top: 12px;
+  color: var(--muted);
+  min-height: 1.2rem;
+  transition: color 400ms ease;
+}
+
+
 .comment-form {
   display: flex;
   flex-direction: column;

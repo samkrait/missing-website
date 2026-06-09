@@ -15,6 +15,7 @@ const elements = {
     button: document.getElementById('person1-button'),
     count: document.getElementById('person1-count'),
     cooldown: document.getElementById('person1-cooldown'),
+    lastmsg: document.getElementById('person1-lastmsg'),
     form: document.getElementById('person1-form'),
     input: document.getElementById('person1-input'),
     comments: document.getElementById('person1-comments'),
@@ -23,6 +24,7 @@ const elements = {
     button: document.getElementById('person2-button'),
     count: document.getElementById('person2-count'),
     cooldown: document.getElementById('person2-cooldown'),
+    lastmsg: document.getElementById('person2-lastmsg'),
     form: document.getElementById('person2-form'),
     input: document.getElementById('person2-input'),
     comments: document.getElementById('person2-comments'),
@@ -87,20 +89,70 @@ function updateCooldown(person) {
   const lastClick = state[person].lastClick;
   if (!lastClick) {
     enableButton(person);
+    updateLastClickMessage(person);
     return;
   }
 
-  const remaining = BUTTON_LOCK_MS - (Date.now() - lastClick);
-  if (remaining <= 0) {
-    state[person].lastClick = null;
+  const elapsed = Date.now() - lastClick;
+  // if elapsed >= lock duration, allow clicking again but keep lastClick timestamp
+  if (elapsed >= BUTTON_LOCK_MS) {
     enableButton(person);
+    updateLastClickMessage(person);
     return;
   }
 
+  const remaining = BUTTON_LOCK_MS - elapsed;
   disableButton(person);
   const minutes = Math.floor(remaining / 60000);
   const seconds = Math.floor((remaining % 60000) / 1000);
   elements[person].cooldown.textContent = `Next click in ${minutes}:${seconds.toString().padStart(2, '0')} minutes`;
+  updateLastClickMessage(person);
+}
+
+const displayNames = {
+  person1: 'Person1',
+  person2: 'Person2',
+};
+
+function updateLastClickMessage(person) {
+  const el = elements[person].lastmsg;
+  if (!el) return;
+  const last = state[person].lastClick;
+  const own = person === 'person1' ? 'Prachu' : 'Kudler';
+  const other = person === 'person1' ? 'Kudler' : 'Prachu';
+
+  if (!last) {
+    // show 0 mins when no click recorded
+    el.textContent = `${own} did not miss ${other} for 0 mins`;
+    // neutral color when no record
+    el.style.color = 'var(--muted)';
+    return;
+  }
+
+  const elapsed = Date.now() - last;
+  const minutes = Math.floor(elapsed / 60000);
+  el.textContent = `${own} did not miss ${other} for ${minutes} mins`;
+
+  // Color interpolation from green -> red over 0..120 minutes.
+  // 0 minutes => green (#10b981). 120+ minutes => red (#ef4444).
+  const MAX_MINUTES = 120;
+  const ratio = Math.min(elapsed / (MAX_MINUTES * 60000), 1);
+
+  const green = { r: 16, g: 185, b: 129 }; // #10b981
+  const red = { r: 239, g: 68, b: 68 }; // #ef4444
+
+  // Interpolate from green to red as time increases
+  const r = Math.round(green.r + (red.r - green.r) * ratio);
+  const g = Math.round(green.g + (red.g - green.g) * ratio);
+  const b = Math.round(green.b + (red.b - green.b) * ratio);
+  el.style.color = `rgb(${r}, ${g}, ${b})`;
+
+  // Add a sad tear emoji for each 30 minutes elapsed
+  const tearCount = Math.floor(minutes / 30);
+  if (tearCount > 0) {
+    const tears = Array(tearCount).fill('😢').join(' ');
+    el.textContent = `${el.textContent} ${tears}`;
+  }
 }
 
 async function ensureStateRow() {
@@ -143,6 +195,7 @@ async function fetchSharedState() {
   }
 
   const row = rows[0];
+  console.log('fetched shared_state row:', row);
   state.person1.count = Number(row.person1_count || 0);
   state.person2.count = Number(row.person2_count || 0);
   state.person1.lastClick = row.person1_last_click ? new Date(row.person1_last_click).getTime() : null;
@@ -180,6 +233,8 @@ async function refreshData() {
   updateCooldown('person2');
 }
 
+/* comments are loaded on refresh; deferred loading removed */
+
 async function vote(person) {
   const remaining = state[person].lastClick ? BUTTON_LOCK_MS - (Date.now() - state[person].lastClick) : 0;
   if (remaining > 0) {
@@ -189,7 +244,7 @@ async function vote(person) {
   const fieldCount = person === 'person1' ? 'person1_count' : 'person2_count';
   const fieldLastClick = person === 'person1' ? 'person1_last_click' : 'person2_last_click';
 
-  await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_STATE_TABLE}?id=eq.${STATE_ROW_ID}`, {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_STATE_TABLE}?id=eq.${STATE_ROW_ID}`, {
     method: 'PATCH',
     headers: { ...supabaseHeaders, Prefer: 'return=representation' },
     body: JSON.stringify({
@@ -198,8 +253,20 @@ async function vote(person) {
     }),
   });
 
+  if (!response.ok) {
+    console.error('vote PATCH failed', response.status, await response.text());
+    return;
+  }
+
+  // Optimistically update local state so the UI reflects the change immediately
+  state[person].count = state[person].count + 1;
+  state[person].lastClick = Date.now();
+  updateCount(person);
+  updateLastClickMessage(person);
+
   await refreshData();
 }
+
 
 async function postComment(person, text) {
   await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_COMMENTS_TABLE}`, {
